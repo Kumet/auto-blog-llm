@@ -59,17 +59,28 @@ def _append_log(job: JobState, message: str) -> None:
 def run_batch_job(
     job_id: str,
     batch_brief: BatchBrief,
-    orchestrator: LLMOrchestrator,
-    wp_client: WordPressClient,
+    wordpress_url: str,
+    wordpress_username: str,
+    wordpress_app_password: str,
     job_store: JobStorePort,
+    orchestrator_provider,
 ) -> JobState:
     job = job_store.get(job_id) or JobState(job_id=job_id, status=JobStatus.queued, total=batch_brief.desired_count)
     job.status = JobStatus.running
     job.started_at = _now_iso()
     job.total = batch_brief.desired_count
-    job_store.create(job)
+    job_store.update(job)
 
+    wp_client: WordPressClient | None = None
     try:
+        orchestrator: LLMOrchestrator = orchestrator_provider()
+        wp_client = WordPressClient(
+            base_url=wordpress_url,
+            username=wordpress_username,
+            app_password=wordpress_app_password,
+            site_adapter=orchestrator.site_adapter,
+        )
+
         batch_plan = orchestrator.batch_plan(batch_brief)
         job.total = len(batch_plan.items)
         job_store.update(job)
@@ -139,5 +150,6 @@ def run_batch_job(
         job.finished_at = _now_iso()
         job_store.update(job)
     finally:
+        if wp_client:
+            wp_client.close()
         return job
-

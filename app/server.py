@@ -50,8 +50,6 @@ async def run_job(
     desired_count: int = Form(10),
 ):
     job_id = str(uuid.uuid4())
-    orchestrator = get_orchestrator()
-
     constraints = {
         "main_keyword": main_kw,
         "sub_keywords": [kw.strip() for kw in sub_kw.split(",") if kw.strip()],
@@ -63,17 +61,20 @@ async def run_job(
         constraints=constraints,
     )
 
-    # WP クライアントは orchestrator にぶら下がる site_adapter を再利用
-    wp_client = WordPressClient(
-        base_url=wordpress_url,
-        username=wordpress_username,
-        app_password=wordpress_app_password,
-        site_adapter=orchestrator.site_adapter,
+    job = JobState(job_id=job_id, status=JobStatus.queued, total=desired_count, current=0, logs=[], results=[])
+    job_store.create(job)
+
+    background_tasks.add_task(
+        run_batch_job,
+        job_id,
+        batch_brief,
+        wordpress_url,
+        wordpress_username,
+        wordpress_app_password,
+        job_store,
+        get_orchestrator,
     )
 
-    background_tasks.add_task(run_batch_job, job_id, batch_brief, orchestrator, wp_client, job_store)
-    job = JobState(job_id=job_id, status=JobStatus.running, total=desired_count, current=0, logs=[], results=[])
-    job_store.create(job)
     return templates.TemplateResponse("partials/progress.html", {"request": request, "job": job})
 
 
@@ -91,4 +92,3 @@ def result(job_id: str, request: Request):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return templates.TemplateResponse("partials/result.html", {"request": request, "job": job})
-
