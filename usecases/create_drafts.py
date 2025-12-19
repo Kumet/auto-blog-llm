@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from domain.models import (
     ArticleBrief,
@@ -269,6 +269,7 @@ class LLMOrchestrator:
             meta_description=plan.meta_description,
             outline=plan.outline,
             markdown=markdown,
+            sections=sections,
             faq=[],
             tags_suggestions=plan.tags_suggestions,
             volatile_topics=plan.volatile_topics,
@@ -280,7 +281,7 @@ class LLMOrchestrator:
         return draft, qc_report
 
     def revise(self, draft: ArticleDraft, qc_report: QcReport) -> ReviseRequest:
-        reasons = [issue.message for issue in qc_report.issues if issue.severity == QcSeverity.hard]
+        reasons = [issue.message for issue in qc_report.issues]
         sections_to_regenerate: List[str] = []
         for issue in qc_report.issues:
             if issue.metric in {"min_h2_length", "outline_id"} and issue.target_id:
@@ -296,6 +297,81 @@ class LLMOrchestrator:
             hard_fail=qc_report.hard_failed,
         )
 
+    def _soft_qc(self, draft: ArticleDraft) -> Dict[str, Any]:
+        prompt = self.prompt_renderer.render_qc_soft_prompt(draft)
+        raw = self.llm.complete(prompt, temperature=0.0)
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return {"fix_targets": [], "fix_instructions": {}, "overall_notes": "JSON parse failed"}
+        return {
+            "fix_targets": data.get("fix_targets", []),
+            "fix_instructions": data.get("fix_instructions", {}),
+            "overall_notes": data.get("overall_notes", ""),
+        }
+
+    def _replace_sections(
+        self, base_sections: List[SectionDraft], replacements: List[SectionDraft]
+    ) -> List[SectionDraft]:
+        replace_map = {s.h2_id: s for s in replacements}
+        result: List[SectionDraft] = []
+        for sec in base_sections:
+            result.append(replace_map.get(sec.h2_id, sec))
+        # 追加で新規 id があれば末尾に足す
+        for h2_id, sec in replace_map.items():
+            if not any(s.h2_id == h2_id for s in result):
+                result.append(sec)
+        return result
+
+    def _apply_revise(
+        self,
+        draft: ArticleDraft,
+        plan: ArticlePlan,
+        targets: List[str],
+        instructions: List[str],
+    ) -> Tuple[ArticleDraft, QcReport]:
+        prompt = self.prompt_renderer.render_revise_prompt(draft, instructions, targets)
+        raw = self.llm.complete(prompt, temperature=0.3)
+        try:
+            data = json.loads(raw)
+            sections_data = data.get("sections", [])
+        except json.JSONDecodeError:
+            sections_data = []
+        new_sections: List[SectionDraft] = []
+        for s in sections_data:
+            try:
+                new_sections.append(SectionDraft.parse_obj(s))
+            except Exception:
+                continue
+
+        merged_sections = self._replace_sections(draft.sections, new_sections)
+        markdown = assemble_markdown(plan, merged_sections)
+        revised_draft = draft.copy(
+            update={
+                "markdown": markdown,
+                "sections": merged_sections,
+                "outline": plan.outline,
+                "tags_suggestions": plan.tags_suggestions,
+                "volatile_topics": plan.volatile_topics,
+                "safe_assertions": plan.safe_assertions,
+            }
+        )
+        qc_report = run_qc(revised_draft)
+        revised_draft.quality_self_check = qc_report.measurements
+        return revised_draft, qc_report
+
+    # _markdown_to_sections は現在のメインフローでは未使用。必要に応じて残す。
+
+    def generate_faq(self, draft: ArticleDraft) -> List[dict]:
+        prompt = self.prompt_renderer.render_faq_prompt(draft)
+        raw = self.llm.complete(prompt, temperature=0.2)
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+        faq = data.get("faq", [])
+        return faq if isinstance(faq, list) else []
+
 
 def create_article_draft(
     orchestrator: LLMOrchestrator,
@@ -304,5 +380,38 @@ def create_article_draft(
     """ユースケースのエントリポイント。Plan→Draft→QC→Revise を実行する。"""
     plan = orchestrator.plan_article(brief)
     draft, qc_report = orchestrator.draft_article(plan)
-    revise_request = orchestrator.revise(draft, qc_report) if qc_report.hard_failed else None
-    return draft, qc_report, revise_request
+    if qc_report.hard_failed:
+        revise_request = orchestrator.revise(draft, qc_report)
+        return draft, qc_report, revise_request
+
+    # Soft QC ループ (最大 2 回)
+    max_soft_retries = 2
+    for attempt in range(max_soft_retries):
+        if not qc_report.soft_failed:
+            break
+        soft_qc = orchestrator._soft_qc(draft)
+        targets = soft_qc.get("fix_targets", [])
+        instructions_map: Dict[str, str] = soft_qc.get("fix_instructions", {})
+        instructions = [instructions_map.get(t, f"Fix {t}") for t in targets]
+        if not targets:
+            break
+        draft, qc_report = orchestrator._apply_revise(draft, plan, targets, instructions)
+        if qc_report.hard_failed:
+            revise_request = orchestrator.revise(draft, qc_report)
+            revise_request.reasons.append("Soft QC 修正中に Hard fail が発生")
+            return draft, qc_report, revise_request
+
+    # FAQ 生成
+    draft.faq = orchestrator.generate_faq(draft)
+    final_qc = run_qc(draft)
+    draft.quality_self_check = final_qc.measurements
+    if final_qc.hard_failed:
+        revise_request = orchestrator.revise(draft, final_qc)
+        revise_request.reasons.append("最終 QC でハード NG")
+        return draft, final_qc, revise_request
+    if final_qc.soft_failed:
+        revise_request = orchestrator.revise(draft, final_qc)
+        revise_request.reasons.append("最終 QC でソフト NG (許容可否を判断)")
+        return draft, final_qc, revise_request
+
+    return draft, final_qc, None

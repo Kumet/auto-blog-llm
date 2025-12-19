@@ -92,6 +92,7 @@ class ArticleDraft(BaseModel):
     meta_description: str
     outline: List[OutlineItem]
     markdown: str
+    sections: List[SectionDraft] = Field(default_factory=list)
     faq: List[dict] = Field(default_factory=list)
     tags_suggestions: List[str] = Field(default_factory=list)
     volatile_topics: List[str] = Field(default_factory=list)
