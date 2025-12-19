@@ -12,10 +12,12 @@ from infrastructure.persistence.in_memory_job_store import InMemoryJobStore
 from infrastructure.wordpress.client import WordPressClient
 from usecases.create_drafts import LLMOrchestrator
 from usecases.run_batch_job import run_batch_job
+from app.settings import get_settings
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 job_store = InMemoryJobStore()
+settings = get_settings()
 
 # Orchestrator はアプリ起動時にセットすることを想定
 _orchestrator: Optional[LLMOrchestrator] = None
@@ -34,7 +36,18 @@ def get_orchestrator() -> LLMOrchestrator:
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return templates.TemplateResponse("pages/index.html", {"request": request})
+    return templates.TemplateResponse(
+        "pages/index.html",
+        {
+            "request": request,
+            "defaults": {
+                "wordpress_url": settings.wp_default_url,
+                "wordpress_username": settings.wp_default_username,
+                "wordpress_app_password": settings.wp_default_app_password,
+                "desired_count": settings.soft_qc_retries * 0 + 10,  # keep default 10
+            },
+        },
+    )
 
 
 @app.post("/run", response_class=HTMLResponse)
@@ -75,7 +88,9 @@ async def run_job(
         get_orchestrator,
     )
 
-    return templates.TemplateResponse("partials/progress.html", {"request": request, "job": job})
+    return templates.TemplateResponse(
+        "partials/progress.html", {"request": request, "job": job, "poll_interval": settings.poll_interval_seconds}
+    )
 
 
 @app.get("/progress/{job_id}", response_class=HTMLResponse)
@@ -83,7 +98,9 @@ def progress(job_id: str, request: Request):
     job = job_store.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return templates.TemplateResponse("partials/progress.html", {"request": request, "job": job})
+    return templates.TemplateResponse(
+        "partials/progress.html", {"request": request, "job": job, "poll_interval": settings.poll_interval_seconds}
+    )
 
 
 @app.get("/result/{job_id}", response_class=HTMLResponse)
@@ -92,3 +109,8 @@ def result(job_id: str, request: Request):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return templates.TemplateResponse("partials/result.html", {"request": request, "job": job})
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

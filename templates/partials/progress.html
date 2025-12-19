@@ -15,5 +15,5 @@
   {% endif %}
 </div>
 {% if job.status not in ['done', 'failed'] %}
-  <div hx-get="/progress/{{ job.job_id }}" hx-trigger="every 3s" hx-target="#progress" hx-swap="innerHTML"></div>
+  <div hx-get="/progress/{{ job.job_id }}" hx-trigger="every {{ poll_interval or 3 }}s" hx-target="#progress" hx-swap="innerHTML"></div>
 {% endif %}

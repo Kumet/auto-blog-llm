@@ -10,15 +10,15 @@
   <form hx-post="/run" hx-target="#progress" hx-swap="innerHTML">
     <div>
       <label>WordPress URL</label><br>
-      <input type="url" name="wordpress_url" placeholder="https://example.com" required>
+      <input type="url" name="wordpress_url" placeholder="https://example.com" value="{{ defaults.wordpress_url }}" required>
     </div>
     <div>
       <label>WordPress Username</label><br>
-      <input type="text" name="wordpress_username" required>
+      <input type="text" name="wordpress_username" value="{{ defaults.wordpress_username }}" required>
     </div>
     <div>
       <label>WordPress Application Password</label><br>
-      <input type="password" name="wordpress_app_password" required>
+      <input type="password" name="wordpress_app_password" value="{{ defaults.wordpress_app_password }}">
     </div>
     <div>
       <label>テーマ / トピック</label><br>
@@ -34,7 +34,7 @@
     </div>
     <div>
       <label>生成本数</label><br>
-      <input type="number" name="desired_count" value="10" min="1" max="20">
+      <input type="number" name="desired_count" value="{{ defaults.desired_count }}" min="1" max="20">
     </div>
     <div>
       <button type="submit">バッチ実行</button>
