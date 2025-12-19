@@ -11,6 +11,7 @@ class ArticleBrief(BaseModel):
 
     topic: str
     target_site: str
+    seed_title: Optional[str] = None
     audience: Optional[str] = None
     purpose: Optional[str] = None
     constraints: Optional[Any] = None

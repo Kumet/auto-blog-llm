@@ -8,6 +8,9 @@ from domain.models import (
     ArticleBrief,
     ArticleDraft,
     ArticlePlan,
+    BatchBrief,
+    BatchPlan,
+    BatchPlanItem,
     OutlineItem,
     OutlineH3,
     QcIssue,
@@ -240,13 +243,37 @@ class LLMOrchestrator:
         self.prompt_renderer = prompt_renderer
         self.site_adapter = site_adapter
 
-    def plan_article(self, brief: ArticleBrief) -> ArticlePlan:
-        prompt = self.prompt_renderer.render_plan_prompt(brief, self.site_adapter)
+    def plan_article(
+        self,
+        brief: ArticleBrief,
+        *,
+        existing_titles: List[str] | None = None,
+        existing_angles: List[str] | None = None,
+        existing_avoid: List[str] | None = None,
+    ) -> ArticlePlan:
+        prompt = self.prompt_renderer.render_plan_prompt(
+            brief,
+            self.site_adapter,
+            existing_titles=existing_titles,
+            existing_angles=existing_angles,
+            existing_avoid=existing_avoid,
+        )
         prompt = self.site_adapter.apply_site_tone(prompt)
         raw = self.llm.complete(prompt, temperature=0.2)
         plan = self.site_adapter.parse_plan_response(raw)
         plan.slug = self.site_adapter.normalize_slug(plan.slug)
         return plan
+
+    def batch_plan(self, brief: BatchBrief) -> BatchPlan:
+        prompt = self.prompt_renderer.render_batch_plan_prompt(brief)
+        for attempt in range(2):
+            raw = self.llm.complete(prompt, temperature=0.2)
+            try:
+                data = json.loads(raw)
+                return BatchPlan.parse_obj(data)
+            except Exception:
+                continue
+        return BatchPlan(batch_id="failed", items=[])
 
     def draft_section(
         self, plan: ArticlePlan, outline_item: OutlineItem, previous_sections: List[SectionDraft]
@@ -415,3 +442,101 @@ def create_article_draft(
         return draft, final_qc, revise_request
 
     return draft, final_qc, None
+
+
+def _batch_item_to_brief(item: BatchPlanItem, target_site: str, topic: str) -> ArticleBrief:
+    return ArticleBrief(
+        topic=topic,
+        seed_title=item.title,
+        target_site=target_site,
+        audience=item.target_audience,
+        purpose=item.search_intent,
+        constraints={
+            "angle": item.angle,
+            "differentiator": item.differentiator,
+            "avoid_overlap_with": item.avoid_overlap_with,
+        },
+    )
+
+
+def _retry_hard_fail(
+    orchestrator: LLMOrchestrator,
+    brief: ArticleBrief,
+    *,
+    existing_titles: List[str],
+    existing_angles: List[str],
+    existing_avoid: List[str],
+) -> Tuple[ArticleDraft, QcReport, ReviseRequest | None]:
+    plan = orchestrator.plan_article(
+        brief,
+        existing_titles=existing_titles,
+        existing_angles=existing_angles,
+        existing_avoid=existing_avoid,
+    )
+    draft, qc_report = orchestrator.draft_article(plan)
+    revise_request = orchestrator.revise(draft, qc_report) if qc_report.hard_failed else None
+    return draft, qc_report, revise_request
+
+
+def _collect_existing(plans: List[ArticlePlan]) -> Tuple[List[str], List[str], List[str]]:
+    titles = [p.title for p in plans]
+    angles: List[str] = []
+    avoid: List[str] = []
+    for p in plans:
+        constraints = getattr(p, "constraints", None)
+        if isinstance(constraints, dict):
+            angle = constraints.get("angle")
+            if angle:
+                angles.append(angle)
+            avoid_overlap = constraints.get("avoid_overlap_with")
+            if avoid_overlap and isinstance(avoid_overlap, list):
+                avoid.extend(avoid_overlap)
+    return titles, angles, avoid
+
+
+def create_batch_drafts(
+    orchestrator: LLMOrchestrator, batch_brief: BatchBrief
+) -> Tuple[List[ArticleDraft], List[QcReport], List[ReviseRequest | None]]:
+    batch_plan = orchestrator.batch_plan(batch_brief)
+    drafts: List[ArticleDraft] = []
+    qc_reports: List[QcReport] = []
+    revise_requests: List[ReviseRequest | None] = []
+    successful_plans: List[ArticlePlan] = []
+
+    for item in batch_plan.items:
+        brief = _batch_item_to_brief(item, batch_brief.target_site, batch_brief.topic)
+        existing_titles, existing_angles, existing_avoid = _collect_existing(successful_plans)
+        plan = orchestrator.plan_article(
+            brief,
+            existing_titles=existing_titles,
+            existing_angles=existing_angles,
+            existing_avoid=existing_avoid,
+        )
+        draft, qc_report = orchestrator.draft_article(plan)
+        revise_request = None
+
+        if qc_report.hard_failed:
+            # 再 Plan → 再生成を 1 回だけ試す
+            retry_plan = orchestrator.plan_article(
+                brief,
+                existing_titles=existing_titles,
+                existing_angles=existing_angles,
+                existing_avoid=existing_avoid,
+            )
+            retry_draft, retry_qc = orchestrator.draft_article(retry_plan)
+            retry_rr = orchestrator.revise(retry_draft, retry_qc) if retry_qc.hard_failed else None
+            if retry_qc.hard_failed:
+                drafts.append(draft)
+                qc_reports.append(qc_report)
+                revise_requests.append(revise_request or orchestrator.revise(draft, qc_report))
+                continue
+            draft = retry_draft
+            qc_report = retry_qc
+            revise_request = retry_rr
+
+        drafts.append(draft)
+        qc_reports.append(qc_report)
+        revise_requests.append(revise_request)
+        successful_plans.append(plan)
+
+    return drafts, qc_reports, revise_requests

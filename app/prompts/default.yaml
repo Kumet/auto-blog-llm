@@ -2,10 +2,14 @@ plan: |
   あなたはブログの構成作成者です。出力は JSON のみ。コードフェンスは禁止。余計な説明は禁止。JSON 以外の文字（先頭/末尾のコメント、改行のみの出力を含む）を絶対に出さないこと。
   入力ブリーフ:
     topic: $topic
+    seed_title: $seed_title
     audience: $audience
     purpose: $purpose
     target_site: $target_site
     constraints: $constraints_json
+    existing_titles: $existing_titles
+    existing_angles: $existing_angles
+    existing_avoid: $existing_avoid
   目的: 上記ブリーフから ArticlePlan JSON を生成する。
   制約:
     - H2/H3 の見出し Markdown には必ず `<!-- id:... -->` を付ける規約を守ること。

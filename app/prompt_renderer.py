@@ -22,7 +22,14 @@ class PromptRenderer(PromptRendererPort):
         template = Template(self.templates[key])
         return template.safe_substitute(**ctx)
 
-    def render_plan_prompt(self, brief: ArticleBrief, site_adapter: SiteAdapterPort) -> str:
+    def render_plan_prompt(
+        self,
+        brief: ArticleBrief,
+        site_adapter: SiteAdapterPort,
+        existing_titles: List[str] | None = None,
+        existing_angles: List[str] | None = None,
+        existing_avoid: List[str] | None = None,
+    ) -> str:
         constraints = brief.constraints if brief.constraints is not None else "なし"
         return self._render(
             "plan",
@@ -31,6 +38,10 @@ class PromptRenderer(PromptRendererPort):
             purpose=brief.purpose or "未指定",
             constraints_json=json.dumps(constraints, ensure_ascii=False, indent=2),
             target_site=brief.target_site,
+            seed_title=brief.seed_title or "",
+            existing_titles=json.dumps(existing_titles or [], ensure_ascii=False),
+            existing_angles=json.dumps(existing_angles or [], ensure_ascii=False),
+            existing_avoid=json.dumps(existing_avoid or [], ensure_ascii=False),
         )
 
     def render_batch_plan_prompt(self, brief: BatchBrief) -> str:

@@ -15,7 +15,14 @@ class LLMPort(Protocol):
 class PromptRendererPort(Protocol):
     """各フェーズのプロンプト組み立てを Strategy 化。"""
 
-    def render_plan_prompt(self, brief: ArticleBrief, site_adapter: "SiteAdapterPort") -> str:
+    def render_plan_prompt(
+        self,
+        brief: ArticleBrief,
+        site_adapter: "SiteAdapterPort",
+        existing_titles: list[str] | None = None,
+        existing_angles: list[str] | None = None,
+        existing_avoid: list[str] | None = None,
+    ) -> str:
         ...
 
     def render_batch_plan_prompt(self, brief: BatchBrief) -> str:
