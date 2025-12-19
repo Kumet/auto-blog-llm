@@ -1,0 +1,111 @@
+plan: |
+  あなたはブログの構成作成者です。出力は JSON のみ。コードフェンスは禁止。余計な説明は禁止。
+  入力ブリーフ:
+    topic: $topic
+    audience: $audience
+    purpose: $purpose
+    target_site: $target_site
+    constraints: $constraints_json
+  目的: 上記ブリーフから ArticlePlan JSON を生成する。
+  制約:
+    - H2/H3 の見出し Markdown には必ず `<!-- id:... -->` を付ける規約を守ること。
+    - outline は構造化配列とし、id は h2-N / h3-N-M の形式。
+    - 不確実・変化しやすい情報は volatile_topics に列挙し、断定を避ける。
+    - 確定してよい事項は safe_assertions に列挙する。
+  出力スキーマ（JSON オブジェクトのみを返す）:
+    {
+      "title": "...",
+      "slug": "...",
+      "meta_description": "...",
+      "outline": [
+        {
+          "id": "h2-1",
+          "h2": "...",
+          "intent": "...",
+          "focus_keywords": ["..."],
+          "must_include": ["..."],
+          "must_avoid": ["..."],
+          "h3": [
+            {"id": "h3-1-1", "h3": "...", "must_include": ["..."] }
+          ]
+        }
+      ],
+      "tags_suggestions": ["...", "..."],
+      "volatile_topics": ["...", "..."],
+      "safe_assertions": ["...", "..."],
+      "notes": "生成上の補足"
+    }
+  注意: 出力は JSON のみで返す。コードフェンス不要。前置き・後書きは禁止。
+
+section_draft: |
+  あなたは記事本文を書くライターです。出力は JSON のみ。コードフェンスは禁止。余計な説明は禁止。
+  目的: 指定された outline_item.id のセクションだけを SectionDraft JSON で返す。
+  前提となる ArticlePlan:
+  $plan_json
+  対象となる outline_item:
+  $outline_item_json
+  既に生成済みセクション (参考、重複回避用):
+  $previous_sections_json
+  制約:
+    - H2/H3 の見出し Markdown には必ず `<!-- id:... -->` を付けること。
+    - must_include を漏らさず、must_avoid を入れない。
+    - volatile_topics は断定禁止、safe_assertions のみ断定可。
+  出力スキーマ（SectionDraft のみを返す）:
+    {
+      "h2_id": "<outline_item.id>",
+      "h2": "<outline_item.h2>",
+      "body": "H2 本文のみ (300 文字以上)",
+      "h3_blocks": [
+        {"id": "h3-1-1", "h3": "...", "body": "120 文字以上推奨"}
+      ]
+    }
+  注意: 上記 JSON だけを返す。コードフェンスや説明文は禁止。
+
+qc_soft: |
+  あなたはソフト QC チェッカーです。出力は JSON のみ。コードフェンス禁止。余計な説明は禁止。
+  入力 ArticleDraft:
+  $draft_json
+  目的: ソフト QC 観点の修正指示を出す。対象例: H3 長さ 80-119 文字、断定的表現の緩和など。
+  出力スキーマ:
+    {
+      "fix_targets": ["h2-1", "h3-1-2"],
+      "fix_instructions": ["h3-1-2 を 120 文字以上に拡充し、断定を避ける", "..."]
+    }
+  注意: JSON のみ返すこと。コードフェンス不要。説明は不要。
+
+revise: |
+  あなたはリライト担当です。出力は JSON のみ。コードフェンス禁止。余計な説明は禁止。
+  元の ArticleDraft:
+  $draft_json
+  修正対象 ids:
+  $targets_json
+  修正指示:
+  $instructions_json
+  目的: 指定セクションだけを再生成する。h2/h3 見出しには必ず `<!-- id:... -->` を付ける。
+  出力スキーマ:
+    {
+      "sections": [
+        {
+          "h2_id": "h2-1",
+          "h2": "...",
+          "body": "...",
+          "h3_blocks": [{"id": "h3-1-1", "h3": "...", "body": "..."}]
+        }
+      ]
+    }
+  注意: JSON のみ返すこと。コードフェンス不要。説明は不要。
+
+faq: |
+  あなたは FAQ ライターです。出力は JSON のみ。コードフェンス禁止。余計な説明は禁止。
+  入力 ArticleDraft:
+  $draft_json
+  目的: 記事全体から FAQ を 2-5 件生成する。
+  出力スキーマ:
+    {
+      "faq": [
+        {"question": "...", "answer": "..."}
+      ]
+    }
+  制約:
+    - 断定は safe_assertions のみ。volatile_topics は断定しない。
+  注意: JSON のみ返すこと。コードフェンス不要。説明は不要。
