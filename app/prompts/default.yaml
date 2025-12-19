@@ -113,3 +113,35 @@ faq: |
   制約:
     - 断定は safe_assertions のみ。volatile_topics は断定しない。
   注意: JSON のみ返すこと。コードフェンス不要。説明は不要。
+
+batch_plan: |
+  あなたは 10 本の記事企画を作るプランナーです。出力は JSON のみ。コードフェンス禁止。余計な説明は禁止。JSON 以外の文字（先頭/末尾のコメント、改行のみの出力を含む）を絶対に出さないこと。
+  入力 BatchBrief:
+    topic: $topic
+    audience: $audience
+    purpose: $purpose
+    target_site: $target_site
+    desired_count: $desired_count
+    constraints: $constraints_json
+  目的: 10 本分の ArticleBrief 相当の情報と、それぞれの差別化ポイントを含む BatchPlanResult JSON を生成する。
+  制約:
+    - angle は 10 本すべて異なること（例: 入門/手順/比較/失敗例/FAQ/チェックリスト/用語集/事例/テンプレ/まとめ）。
+    - avoid_overlap_with に「他記事と重複してはいけない観点」を明記し、各記事で相互に重複しないようにする。
+    - 全て JSON のみで返す。コードフェンスや説明文は禁止。
+  出力スキーマ:
+    {
+      "batch_id": "string",
+      "items": [
+        {
+          "article_id": "a1",
+          "title": "...",
+          "angle": "...",
+          "target_audience": "...",
+          "search_intent": "...",
+          "differentiator": "...",
+          "avoid_overlap_with": ["..."],
+          "outline_hint": ["h2 見出し案", "..."]
+        }
+      ]
+    }
+  注意: angle は必ず重複しない 10 パターンを用いること。avoid_overlap_with で他の記事との重複を避ける観点を列挙すること。

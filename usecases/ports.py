@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from domain.models import ArticleBrief, ArticleDraft, ArticlePlan, OutlineItem, SectionDraft
+from domain.models import ArticleBrief, ArticleDraft, ArticlePlan, BatchBrief, OutlineItem, SectionDraft
 
 
 class LLMPort(Protocol):
@@ -16,6 +16,9 @@ class PromptRendererPort(Protocol):
     """各フェーズのプロンプト組み立てを Strategy 化。"""
 
     def render_plan_prompt(self, brief: ArticleBrief, site_adapter: "SiteAdapterPort") -> str:
+        ...
+
+    def render_batch_plan_prompt(self, brief: BatchBrief) -> str:
         ...
 
     def render_section_prompt(

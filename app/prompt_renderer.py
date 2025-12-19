@@ -7,7 +7,7 @@ from typing import List
 
 import yaml
 
-from domain.models import ArticleBrief, ArticleDraft, ArticlePlan, OutlineItem, SectionDraft
+from domain.models import ArticleBrief, ArticleDraft, ArticlePlan, BatchBrief, OutlineItem, SectionDraft
 from usecases.ports import PromptRendererPort, SiteAdapterPort
 
 
@@ -31,6 +31,18 @@ class PromptRenderer(PromptRendererPort):
             purpose=brief.purpose or "未指定",
             constraints_json=json.dumps(constraints, ensure_ascii=False, indent=2),
             target_site=brief.target_site,
+        )
+
+    def render_batch_plan_prompt(self, brief: BatchBrief) -> str:
+        constraints = brief.constraints if brief.constraints is not None else "なし"
+        return self._render(
+            "batch_plan",
+            topic=brief.topic,
+            audience=brief.audience or "未指定",
+            purpose=brief.purpose or "未指定",
+            constraints_json=json.dumps(constraints, ensure_ascii=False, indent=2),
+            target_site=brief.target_site,
+            desired_count=brief.desired_count,
         )
 
     def render_section_prompt(
@@ -66,4 +78,3 @@ class PromptRenderer(PromptRendererPort):
             "faq",
             draft_json=json.dumps(draft.dict(), ensure_ascii=False, indent=2),
         )
-

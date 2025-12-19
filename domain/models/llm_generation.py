@@ -19,6 +19,20 @@ class ArticleBrief(BaseModel):
         extra = "forbid"
 
 
+class BatchBrief(BaseModel):
+    """複数記事をまとめて計画するためのブリーフ。"""
+
+    topic: str
+    target_site: str
+    desired_count: int = 10
+    audience: Optional[str] = None
+    purpose: Optional[str] = None
+    constraints: Optional[Any] = None
+
+    class Config:
+        extra = "forbid"
+
+
 class OutlineH3(BaseModel):
     id: str
     h3: str
@@ -156,6 +170,28 @@ class ReviseRequest(BaseModel):
 class BatchPlan(BaseModel):
     batch_id: str
     articles: List[ArticlePlan]
+
+    class Config:
+        extra = "forbid"
+
+
+class BatchPlanItem(BaseModel):
+    article_id: str
+    title: str
+    angle: str
+    target_audience: str
+    search_intent: str
+    differentiator: str
+    avoid_overlap_with: List[str] = Field(default_factory=list)
+    outline_hint: Optional[List[str]] = None
+
+    class Config:
+        extra = "forbid"
+
+
+class BatchPlanResult(BaseModel):
+    batch_id: str
+    items: List[BatchPlanItem]
 
     class Config:
         extra = "forbid"

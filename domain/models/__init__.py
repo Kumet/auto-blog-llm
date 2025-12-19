@@ -12,6 +12,9 @@ from .llm_generation import (
     QcReport,
     ReviseRequest,
     BatchPlan,
+    BatchBrief,
+    BatchPlanItem,
+    BatchPlanResult,
 )
 
 __all__ = [
@@ -28,4 +31,7 @@ __all__ = [
     "QcReport",
     "ReviseRequest",
     "BatchPlan",
+    "BatchBrief",
+    "BatchPlanItem",
+    "BatchPlanResult",
 ]
