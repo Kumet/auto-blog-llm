@@ -167,14 +167,6 @@ class ReviseRequest(BaseModel):
         extra = "forbid"
 
 
-class BatchPlan(BaseModel):
-    batch_id: str
-    articles: List[ArticlePlan]
-
-    class Config:
-        extra = "forbid"
-
-
 class BatchPlanItem(BaseModel):
     article_id: str
     title: str
@@ -189,7 +181,7 @@ class BatchPlanItem(BaseModel):
         extra = "forbid"
 
 
-class BatchPlanResult(BaseModel):
+class BatchPlan(BaseModel):
     batch_id: str
     items: List[BatchPlanItem]
 

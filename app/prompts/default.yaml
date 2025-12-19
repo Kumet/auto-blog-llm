@@ -123,7 +123,7 @@ batch_plan: |
     target_site: $target_site
     desired_count: $desired_count
     constraints: $constraints_json
-  目的: 10 本分の ArticleBrief 相当の情報と、それぞれの差別化ポイントを含む BatchPlanResult JSON を生成する。
+  目的: 10 本分の ArticleBrief 相当の情報と、それぞれの差別化ポイントを含む BatchPlan JSON を生成する。
   制約:
     - angle は 10 本すべて異なること（例: 入門/手順/比較/失敗例/FAQ/チェックリスト/用語集/事例/テンプレ/まとめ）。
     - avoid_overlap_with に「他記事と重複してはいけない観点」を明記し、各記事で相互に重複しないようにする。
