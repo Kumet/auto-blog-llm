@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>WP 下書き生成</title>
+  <script src="https://unpkg.com/htmx.org@1.9.9"></script>
+</head>
+<body>
+  <h1>WP 下書き生成 (10 本バッチ)</h1>
+  <form hx-post="/run" hx-target="#progress" hx-swap="innerHTML">
+    <div>
+      <label>WordPress URL</label><br>
+      <input type="url" name="wordpress_url" placeholder="https://example.com" required>
+    </div>
+    <div>
+      <label>WordPress Username</label><br>
+      <input type="text" name="wordpress_username" required>
+    </div>
+    <div>
+      <label>WordPress Application Password</label><br>
+      <input type="password" name="wordpress_app_password" required>
+    </div>
+    <div>
+      <label>テーマ / トピック</label><br>
+      <input type="text" name="topic" required>
+    </div>
+    <div>
+      <label>メインキーワード</label><br>
+      <input type="text" name="main_kw">
+    </div>
+    <div>
+      <label>サブキーワード（カンマ区切り）</label><br>
+      <input type="text" name="sub_kw">
+    </div>
+    <div>
+      <label>生成本数</label><br>
+      <input type="number" name="desired_count" value="10" min="1" max="20">
+    </div>
+    <div>
+      <button type="submit">バッチ実行</button>
+    </div>
+  </form>
+  <div id="progress"></div>
+</body>
+</html>

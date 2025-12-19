@@ -188,3 +188,37 @@ class BatchPlan(BaseModel):
 
     class Config:
         extra = "forbid"
+
+
+class JobStatus(str, Enum):
+    queued = "queued"
+    running = "running"
+    done = "done"
+    failed = "failed"
+
+
+class JobResultItem(BaseModel):
+    index: int
+    title: Optional[str] = None
+    draft_ok: bool = False
+    wp_ok: bool = False
+    wp_post_id: Optional[int] = None
+    wp_url: Optional[str] = None
+    error: Optional[str] = None
+
+    class Config:
+        extra = "forbid"
+
+
+class JobState(BaseModel):
+    job_id: str
+    status: JobStatus = JobStatus.queued
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    total: int = 0
+    current: int = 0
+    logs: List[str] = Field(default_factory=list)
+    results: List[JobResultItem] = Field(default_factory=list)
+
+    class Config:
+        extra = "forbid"

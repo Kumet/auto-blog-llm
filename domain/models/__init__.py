@@ -14,6 +14,8 @@ from .llm_generation import (
     BatchPlan,
     BatchBrief,
     BatchPlanItem,
+    JobStatus,
+    JobState,
 )
 
 __all__ = [
@@ -32,4 +34,6 @@ __all__ = [
     "BatchPlan",
     "BatchBrief",
     "BatchPlanItem",
+    "JobStatus",
+    "JobState",
 ]

@@ -1,0 +1,14 @@
+<div>
+  <p>進捗: {{ job.current }} / {{ job.total }} （状態: {{ job.status }}）</p>
+  {% if job.logs %}
+    <p>最新ログ: {{ job.logs[-1] }}</p>
+  {% endif %}
+  {% if job.results %}
+    <ul>
+      {% for r in job.results if r.wp_url %}
+        <li><a href="{{ r.wp_url }}" target="_blank" rel="noopener">{{ r.title or ('記事'+r.index|string) }}</a></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</div>
+<div hx-get="/progress/{{ job.job_id }}" hx-trigger="every 3s" hx-target="#progress" hx-swap="innerHTML"></div>

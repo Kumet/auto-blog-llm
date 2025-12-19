@@ -47,6 +47,13 @@ class PromptRendererPort(Protocol):
         ...
 
 
+class MarkdownRendererPort(Protocol):
+    """Markdown -> HTML 変換を抽象化。"""
+
+    def to_html(self, markdown: str) -> str:
+        ...
+
+
 class SiteAdapterPort(Protocol):
     """サイト固有の設定/パース/トーンをカプセル化。"""
 
@@ -63,4 +70,21 @@ class SiteAdapterPort(Protocol):
         ...
 
     def revise_required(self, draft: ArticleDraft) -> bool:
+        ...
+
+    def extend_wp_payload(self, draft: ArticleDraft, payload: dict) -> dict:
+        """サイト固有のカテゴリ/タグ/カスタムフィールドを上書き・追加するための拡張ポイント。"""
+        ...
+
+
+class JobStorePort(Protocol):
+    """ジョブ状態の永続化を抽象化。"""
+
+    def create(self, job: "JobState") -> None:
+        ...
+
+    def get(self, job_id: str) -> "JobState | None":
+        ...
+
+    def update(self, job: "JobState") -> None:
         ...

@@ -1,0 +1,15 @@
+<div>
+  <h2>結果</h2>
+  <p>状態: {{ job.status }} / {{ job.current }} / {{ job.total }}</p>
+  <ul>
+    {% for r in job.results %}
+      <li>
+        #{{ r.index }}: {{ r.title or 'N/A' }} -
+        Draft: {{ 'OK' if r.draft_ok else 'NG' }} /
+        WP: {{ 'OK' if r.wp_ok else 'NG' }}
+        {% if r.wp_url %} <a href="{{ r.wp_url }}" target="_blank" rel="noopener">リンク</a>{% endif %}
+        {% if r.error %} <span style="color:red">{{ r.error }}</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</div>
